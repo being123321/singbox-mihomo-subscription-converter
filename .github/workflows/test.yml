@@ -1,0 +1,17 @@
+name: Test
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -v
+      - run: bash -n install.sh
+      - run: bash install.sh --host sub.example.com --tls auto --email admin@example.com --dry-run
+      - run: bash install.sh --host 203.0.113.10 --tls off --port 8080 --dry-run
