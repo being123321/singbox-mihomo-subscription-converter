@@ -1,0 +1,17 @@
+'use strict';
+const $=id=>document.getElementById(id);
+let current=null, lastContent=null;
+const body=()=>({input:$('input').value,source:$('source').value,format:document.querySelector('[name=format]:checked').value,device:document.querySelector('[name=device]:checked').value,mode:$('mode').value,adblock:$('adblock').checked,insecure:$('insecure').checked});
+document.querySelectorAll('[name=device]').forEach(el=>el.addEventListener('change',()=>{$('mode').disabled=document.querySelector('[name=device]:checked').value==='mobile';if($('mode').disabled)$('mode').value='tun';}));
+const status=(s,error=false)=>{$('status').textContent=s;$('status').className=error?'error':'';};
+async function api(path,payload){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const j=await r.json();if(!r.ok)throw Error(j.error||'请求失败');return j;}
+async function action(preview){if(!$('form').reportValidity())return; $('create').disabled=$('preview').disabled=true;status('正在获取并转换订阅…');try{const b=body();const j=await api(preview?'/api/preview':'/api/create',b);if(preview){lastContent={text:j.content,format:b.format};$('config').textContent=j.content;$('previewBox').hidden=false;$('previewBox').open=true;}else{current=j;lastContent=null;$('url').value=j.url;$('qr').src=j.qr;$('singboxQr').src=j.singbox_qr;$('singboxQrBox').hidden=b.format!=='auto';$('result').hidden=false;}status(`转换成功，共 ${j.nodes} 个节点。${b.format==='auto'?'统一链接已启用 UA 识别；sing-box 使用下方专用码。':''}${j.omitted_nodes?.length?'已省略 '+j.omitted_nodes.length+' 个不兼容节点。':''}${b.insecure?'已开启跳过节点证书验证。':'节点证书验证已开启。'}`);}catch(e){status(e.message,true);}finally{$('create').disabled=$('preview').disabled=false;}}
+$('form').addEventListener('submit',e=>{e.preventDefault();action(false);});
+$('preview').addEventListener('click',()=>action(true));
+$('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('url').value);status('订阅链接已复制。');}catch{$('url').select();status('请手动复制选中的订阅链接。');}});
+$('downloadQr').addEventListener('click',()=>{if(!current?.qr)return;const a=document.createElement('a');a.href=current.qr;a.download='subscription-qr.svg';a.click();});
+$('downloadSingboxQr').addEventListener('click',()=>{if(!current?.singbox_qr)return;const a=document.createElement('a');a.href=current.singbox_qr;a.download='sing-box-subscription-qr.svg';a.click();});
+$('download').addEventListener('click',async()=>{try{if(!current)return;const r=await fetch(current.url);if(!r.ok)throw Error('下载失败');const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=blob.type.includes('json')?'sing-box.json':blob.type.includes('yaml')?'clash-meta.yaml':'subscription.txt';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}catch(e){status(e.message,true);}});
+$('revoke').addEventListener('click',async()=>{if(!current)return;try{await api('/api/revoke',{id:current.id});current=null;$('result').hidden=true;status('链接已撤销。');}catch(e){status(e.message,true);}});
+$('input').addEventListener('change',()=>{$('source').placeholder=$('input').value==='url'?'https://你的订阅地址\n每行一个，最多 5 个':'粘贴 Clash YAML、sing-box JSON 或节点链接';$('inputHint').textContent=$('input').value==='url'?'原始订阅地址只在你的 VPS 保存，生成链接不携带原始地址。':'粘贴内容会保存为快照；节点更新后需要重新生成订阅。';});
+fetch('/health').then(r=>r.json()).then(j=>{$('ruleStatus').textContent=j.rules_updated?'规则更新于 '+new Date(j.rules_updated*1000).toLocaleString('zh-CN'):'规则正在初始化…';}).catch(()=>{$('ruleStatus').textContent='服务暂时无法连接';});

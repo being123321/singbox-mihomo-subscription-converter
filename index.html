@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>订阅工坊 · ACL4SSR</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body><main><header><a class="brand" href="/">ZH <span>/ 订阅工坊</span></a><span class="badge">ACL4SSR 分流规则</span></header>
+<section class="intro"><p class="eyebrow">YOUR NODES. YOUR RULES.</p><h1>一份订阅，<br>随设备而变。</h1><p>把你的节点转换成适合手机或电脑的配置。<br>支持 sing-box 与 Clash Meta / Mihomo。</p></section>
+<section class="panel"><div class="heading"><span class="step">01</span><h2>导入你的订阅</h2></div>
+<form id="form">
+<div class="row"><label for="input">输入方式</label><select id="input"><option value="url">订阅链接 · 自动更新</option><option value="text">粘贴节点 / YAML / JSON</option></select></div>
+<label for="source" class="sr">订阅内容</label><textarea id="source" rows="5" spellcheck="false" placeholder="https://你的订阅地址&#10;可以每行填一个订阅，最多 5 个" required></textarea>
+<p class="hint" id="inputHint">支持 Clash YAML、sing-box JSON、Base64 和常见节点链接。订阅由你的 VPS 获取。</p>
+<div class="heading separated"><span class="step">02</span><h2>选择输出配置</h2></div>
+<div class="choices"><fieldset><legend>目标格式</legend><label class="option"><input type="radio" name="format" value="auto" checked><span>统一订阅<small>UA 识别所有客户端</small></span></label><label class="option"><input type="radio" name="format" value="singbox"><span>sing-box<small>1.14.3 / 1.15 适配</small></span></label><label class="option"><input type="radio" name="format" value="clash"><span>Clash Meta<small>Mihomo 客户端</small></span></label></fieldset>
+<fieldset><legend>使用设备</legend><label class="option"><input type="radio" name="device" value="mobile" checked><span>手机<small>TUN / VPN 模式</small></span></label><label class="option"><input type="radio" name="device" value="desktop"><span>电脑<small>TUN / 系统代理</small></span></label></fieldset></div>
+<p class="hint">统一订阅按 UA 输出 sing-box、Clash/Mihomo 或 v2rayN / v2rayNG / 小火箭节点订阅。未知 UA 默认返回通用节点格式；可添加 ?target=singbox、clash、xray 手动指定。节点订阅不携带 TUN、分流和去广告策略，需在对应客户端中设置。</p><div class="row"><label for="mode">流量接管模式</label><select id="mode" disabled><option value="tun">TUN · 接管系统流量</option><option value="proxy">系统代理 · 127.0.0.1:7890</option></select></div>
+<p class="hint">sing-box 已适配 1.15 新 TUN 栈，不写入弃用的 stack 选项。1.15 当前为预发布版，亦兼容 1.14.3 稳定版。</p>
+<label class="toggle"><input id="adblock" type="checkbox" checked><span>去广告<small>启用“去广告”策略组，同时控制广告连接与 DNS 查询。组内可选直连、代理、拦截，默认拦截；关闭本开关则停用两层去广告。</small></span></label>
+<label class="toggle"><input id="insecure" type="checkbox"><span>跳过节点证书验证<small>默认关闭。仅在你信任自签名证书节点时开启。</small></span></label>
+<p class="hint">手机：Android / iOS，使用兼容客户端的 VPN 模式。电脑：Windows / macOS / Linux，TUN 需要管理员/root 权限或客户端服务模式；系统代理模式使用 127.0.0.1:7890。v2rayN / v2rayNG / Shadowrocket 请选择统一订阅；原版 Clash 无法使用现代节点配置。</p>
+<div class="actions"><button type="submit" id="create">生成订阅链接 <span>↗</span></button><button type="button" id="preview" class="secondary">预览配置</button></div></form>
+<p id="status" role="status" aria-live="polite"></p><section id="result" hidden><label for="url">你的订阅链接</label><div class="linkrow"><input id="url" readonly><button id="copy" class="secondary">复制</button></div><p class="hint">链接是访问凭证，请勿公开。上游订阅会在客户端更新时重新获取，服务器缓存 5 分钟。</p><div class="qrbox"><img id="qr" alt="订阅链接二维码" width="240" height="240"><p class="hint">使用客户端的扫码导入功能。二维码与订阅链接具有相同访问权限，请勿公开。</p><button id="downloadQr" class="secondary">下载二维码</button></div><div class="qrbox" id="singboxQrBox" hidden><strong>sing-box 专用导入码</strong><img id="singboxQr" alt="sing-box 专用订阅二维码" width="240" height="240"><p class="hint">同一份订阅，使用 sing-box 专用导入协议并指定格式。</p><button id="downloadSingboxQr" class="secondary">下载 sing-box 二维码</button></div><div class="actions"><button id="download" class="secondary">下载配置</button><button id="revoke" class="textbutton">撤销此链接</button></div></section>
+<details id="previewBox" hidden><summary>配置预览</summary><pre id="config"></pre></details></section>
+<footer><span id="ruleStatus">正在检查规则状态…</span><a href="https://github.com/ACL4SSR/ACL4SSR" target="_blank" rel="noreferrer">规则来源 ACL4SSR · CC BY-SA 4.0 ↗</a><a href="https://github.com/217heidai/adblockfilters" target="_blank" rel="noreferrer">去广告 217heidai · GPL-3.0 ↗</a><p>本服务转换并托管配置，不提供代理节点。无法转换的协议或选项会报错。</p></footer></main></body></html>

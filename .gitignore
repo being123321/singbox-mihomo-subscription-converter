@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/
+*.sqlite*
+cache-*.json
+.env
+*.pem
+*.key
+*.log
