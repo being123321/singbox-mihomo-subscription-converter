@@ -193,7 +193,7 @@ class Handler(BaseHTTPRequestHandler):
                 if body.get('format')=='auto':
                     if any(x in ua.lower() for x in ['windows','macintosh','macos','sfm','v2rayn/']):body['device']='desktop'
                     elif any(x in ua.lower() for x in ['android','iphone','ios','sfa/','sfi/']):body['device']='mobile'
-                key=hashlib.sha256(('v16:'+json.dumps(body,sort_keys=True)+':'+str(target)).encode()).hexdigest(); cache=DATA/f'cache-{key}.json'
+                key=hashlib.sha256(('v17:'+json.dumps(body,sort_keys=True)+':'+str(target)).encode()).hexdigest(); cache=DATA/f'cache-{key}.json'
                 if cache.exists() and time.time()-cache.stat().st_mtime<300: text,ctype,count,meta=json.loads(cache.read_text(encoding='utf-8'))
                 else:
                     text,ctype,count,meta=render(body,target)
