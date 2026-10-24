@@ -5,7 +5,7 @@
 <section class="panel"><div class="heading"><span class="step">01</span><h2>导入你的订阅</h2></div>
 <form id="form">
 <div class="row"><label for="input">输入方式</label><select id="input"><option value="url">订阅链接 · 自动更新</option><option value="text">粘贴节点 / YAML / JSON</option></select></div>
-<label for="source" class="sr">订阅内容</label><textarea id="source" rows="5" spellcheck="false" placeholder="https://你的订阅地址&#10;可以每行填一个订阅，最多 5 个" required></textarea>
+<label for="source" class="sr">订阅内容</label><textarea id="source" rows="5" spellcheck="false" placeholder="https://你的订阅地址&#10;每行填一个订阅，可合并多个" required></textarea>
 <p class="hint" id="inputHint">支持 Clash YAML、sing-box JSON、Base64 和常见节点链接。订阅由你的 VPS 获取。</p>
 <div class="heading separated"><span class="step">02</span><h2>选择输出配置</h2></div>
 <div class="choices"><fieldset><legend>目标格式</legend><label class="option"><input type="radio" name="format" value="auto" checked><span>统一订阅<small>UA 识别所有客户端</small></span></label><label class="option"><input type="radio" name="format" value="singbox"><span>sing-box<small>1.14.3 / 1.15 适配</small></span></label><label class="option"><input type="radio" name="format" value="clash"><span>Clash Meta<small>Mihomo 客户端</small></span></label></fieldset>

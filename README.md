@@ -54,7 +54,7 @@ bash install.sh --host sub.example.com --tls auto --email admin@example.com --dr
 - ACL4SSR 分流、腾讯域名/IP 优先直连和国内 DNS。
 - 217heidai 去广告规则；一个开关控制连接及 DNS，策略组提供直连、代理、拦截。
 - 自动刷新规则，每 8 小时更新，下载失败保留旧文件并重试。
-- 输入最多 5 个订阅 URL、4 MB、1000 个节点；最多保存 1000 条订阅。
+- 不限制订阅 URL 条数，支持公网 HTTP(S) 1–65535 端口；单次输入/每个上游响应最多 4 MB、合并最多 1000 个节点；最多保存 1000 条订阅。
 - 不兼容 sing-box 的 XHTTP 节点会明确省略，Clash/节点列表根据协议支持保留。
 
 节点列表订阅不能携带完整的 DNS、TUN 或分流策略，需要对应客户端自行配置。sing-box 的“故障转移”使用 URLTest 健康选择，Mihomo 使用优先顺序 fallback，两者行为不同。腾讯直连覆盖上游规则中的地址，不保证包含全部动态游戏 IP。
@@ -118,3 +118,6 @@ bash -n install.sh
 - [217heidai/adblockfilters](https://github.com/217heidai/adblockfilters)：去广告二进制规则，GPL-3.0。
 
 感谢上述规则维护者。本项目不附带它们的规则数据库或代理内核；再分发下载的规则前请阅读上游完整声明。
+
+
+2026-10-24：取消订阅链接条数和上游端口白名单，保留公网地址校验、4 MB 大小限制和 1000 节点限制。国内域名、国内公司 IP、国内 IP 优先于 ProxyLite；百度、B站、淘宝、京东、抖音、知乎、小红书、美团、网易、快手、拼多多等由 ChinaDomain 覆盖，国内 DNS 优先。规则模式下生效。

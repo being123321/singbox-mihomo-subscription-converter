@@ -5,9 +5,9 @@ import yaml
 
 SUPPORTED={'shadowsocks','vmess','vless','trojan','hysteria2','tuic','socks','http','anytls'}
 RULES=[('Ruleset/Tencent','DIRECT'),('LocalAreaNetwork','DIRECT'),('UnBan','DIRECT'),('BanAD','REJECT'),
-       ('BanProgramAD','REJECT'),('GoogleCN','DIRECT'),('Telegram','Telegram'),
+       ('BanProgramAD','REJECT'),('ChinaDomain','DIRECT'),('GoogleCN','DIRECT'),('Telegram','Telegram'),
        ('Netflix','流媒体'),('Microsoft','Microsoft'),('Apple','Apple'),
-       ('ProxyLite','PROXY'),('ChinaDomain','DIRECT'),('ChinaCompanyIp','DIRECT'),('ChinaIp','DIRECT')]
+       ('ChinaCompanyIp','DIRECT'),('ChinaIp','DIRECT'),('ProxyLite','PROXY')]
 
 def b64(s):
     s=re.sub(r'\s','',s)
@@ -194,8 +194,8 @@ def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True):
              'rule-providers':providers,'rules':['IP-CIDR,127.0.0.0/8,DIRECT,no-resolve','IP-CIDR,10.0.0.0/8,DIRECT,no-resolve','IP-CIDR,172.16.0.0/12,DIRECT,no-resolve','IP-CIDR,192.168.0.0/16,DIRECT,no-resolve']+[f'RULE-SET,{name.replace("/","_")},{"去广告" if group=="REJECT" else group}' for name,group in RULES]+['MATCH,PROXY']}
         # The adblock switch controls both connection and DNS filtering.
         cfg['rules'].insert(5,'RULE-SET,HeidaiAd,去广告')
-        cfg['dns']['nameserver-policy']={'rule-set:Ruleset_Tencent':'https://dns.alidns.com/dns-query'}
-        cfg['dns']['fake-ip-filter']=['rule-set:Ruleset_Tencent']
+        cfg['dns']['nameserver-policy']={'rule-set:Ruleset_Tencent':'https://dns.alidns.com/dns-query','rule-set:ChinaDomain':'https://dns.alidns.com/dns-query'}
+        cfg['dns']['fake-ip-filter']=['rule-set:Ruleset_Tencent','rule-set:ChinaDomain']
         if adblock:
             cfg['dns']['nameserver-policy']['rule-set:HeidaiAd']='https://1.1.1.1/dns-query#去广告'
             cfg['dns']['fake-ip-filter'].append('rule-set:HeidaiAd')

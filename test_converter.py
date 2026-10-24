@@ -80,7 +80,7 @@ class ConversionTests(unittest.TestCase):
         with self.assertRaises(ValueError):to_clash(n)
     def test_ssrf(self):
         from app import fetch
-        for url in ['http://127.0.0.1/','http://169.254.169.254/','http://[::1]/','file:///etc/passwd','http://example.com:22/']:
+        for url in ['http://127.0.0.1/','http://169.254.169.254/','http://[::1]/','file:///etc/passwd','http://example.com:0/','http://example.com:65536/']:
             with self.assertRaises(ValueError):fetch(url)
         with patch('socket.getaddrinfo',return_value=[(socket.AF_INET,socket.SOCK_STREAM,6,'',('10.0.0.1',443))]):
             with self.assertRaises(ValueError):fetch('https://public.example/')

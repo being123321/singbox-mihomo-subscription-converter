@@ -26,8 +26,8 @@ def fetch(url,binary=False):
     for _ in range(5):
         u=urlsplit(url)
         if u.scheme not in {'http','https'} or not u.hostname or u.username or u.password: raise ValueError('订阅地址必须是 HTTP(S)，且不能含用户名密码')
-        port=u.port or (443 if u.scheme=='https' else 80)
-        if port not in {80,443,8080,8443}: raise ValueError('订阅端口仅支持 80、443、8080、8443')
+        port=u.port if u.port is not None else (443 if u.scheme=='https' else 80)
+        if not 1<=port<=65535: raise ValueError('订阅端口必须在 1–65535 之间')
         addresses=socket.getaddrinfo(u.hostname,port,type=socket.SOCK_STREAM)
         if not addresses or any(not ipaddress.ip_address(row[4][0]).is_global for row in addresses): raise ValueError('订阅地址必须指向公网，不能访问内网、回环或保留地址')
         # Pin the connection to an address we checked; TLS still verifies the URL hostname.
@@ -111,7 +111,6 @@ def nodes_for(body,universal=False):
     if not source: raise ValueError('请填写订阅地址或节点内容')
     if body.get('input')=='url':
         urls=[x.strip() for x in source.splitlines() if x.strip()]
-        if len(urls)>5: raise ValueError('最多合并 5 个订阅地址')
         nodes=[]
         for url in urls: nodes.extend((parse_universal if universal else parse_source)(fetch(url)))
         if len(nodes)>1000: raise ValueError('合并后节点数量不能超过 1000')
@@ -193,7 +192,7 @@ class Handler(BaseHTTPRequestHandler):
                 if body.get('format')=='auto':
                     if any(x in ua.lower() for x in ['windows','macintosh','macos','sfm','v2rayn/']):body['device']='desktop'
                     elif any(x in ua.lower() for x in ['android','iphone','ios','sfa/','sfi/']):body['device']='mobile'
-                key=hashlib.sha256(('v13:'+json.dumps(body,sort_keys=True)+':'+str(target)).encode()).hexdigest(); cache=DATA/f'cache-{key}.json'
+                key=hashlib.sha256(('v14:'+json.dumps(body,sort_keys=True)+':'+str(target)).encode()).hexdigest(); cache=DATA/f'cache-{key}.json'
                 if cache.exists() and time.time()-cache.stat().st_mtime<300: text,ctype,count,meta=json.loads(cache.read_text(encoding='utf-8'))
                 else:
                     text,ctype,count,meta=render(body,target)
