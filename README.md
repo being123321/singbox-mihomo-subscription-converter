@@ -1,4 +1,4 @@
-# Subscription Forge · 订阅工坊
+# singbox/mihomo 订阅转换
 
 自建订阅转换网站：将节点链接、Base64、Clash YAML、sing-box JSON 转换为远程订阅，并生成二维码。
 
@@ -7,7 +7,7 @@
 支持 **Debian 12/13、Ubuntu 22.04/24.04，systemd**。需要 root、能访问 GitHub 的网络，以及未被其他服务占用的网站端口。安装器使用独立的 Python 服务和 Nginx；已有 Docker/Nginx Proxy Manager 的机器请使用下方手动反代方式，避免端口冲突。
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/being123321/subscription-forge/main/install.sh -o install.sh && sudo bash install.sh
+curl -fsSL https://raw.githubusercontent.com/being123321/singbox-mihomo-subscription-converter/main/install.sh -o install.sh && sudo bash install.sh
 ```
 
 交互选择三种证书模式：
@@ -68,8 +68,8 @@ bash install.sh --host sub.example.com --tls auto --email admin@example.com --dr
 ## 手动安装 / 已有反向代理
 
 ```bash
-git clone https://github.com/being123321/subscription-forge.git
-cd subscription-forge
+git clone https://github.com/being123321/singbox-mihomo-subscription-converter.git
+cd singbox-mihomo-subscription-converter
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 PUBLIC_URL=https://sub.example.com BIND=127.0.0.1 PORT=9088 DATA_DIR=./data .venv/bin/python app.py
@@ -121,3 +121,7 @@ bash -n install.sh
 
 
 2026-10-24：取消订阅链接条数和上游端口白名单，保留公网地址校验、4 MB 大小限制和 1000 节点限制。国内域名、国内公司 IP、国内 IP 优先于 ProxyLite；百度、B站、淘宝、京东、抖音、知乎、小红书、美团、网易、快手、拼多多等由 ChinaDomain 覆盖，国内 DNS 优先。规则模式下生效。
+
+2026-10-24：建行生活兼容例外：adv.ccb.com 在连接和 DNS 层优先直连，避免启动资源被广告规则拦截。其他广告拦截保持不变。
+
+2026-10-25：新增默认开启的 IPv6 入站开关：sing-box 双栈 TUN、桌面 [::1]:7890；Mihomo IPv6/DNS、双栈 TUN、本机 [::1]:7890。关闭时不生成 IPv6 入站并采用 IPv4 DNS。节点列表不携带入站配置。规则在各自规则集内去重、移除被父域名覆盖的子域名；不跨策略去重，以保留分流优先级。sing-box JSON 与镜像规则采用紧凑序列化。

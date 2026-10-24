@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 077
-REPOSITORY=being123321/subscription-forge
+REPOSITORY=being123321/singbox-mihomo-subscription-converter
 REF=${REF:-main}
 ROOT=/opt/subscription-forge
 DATA=/var/lib/subscription-forge

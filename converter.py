@@ -178,7 +178,7 @@ def to_clash(n):
     if unknown: raise ValueError('Clash 无法无损转换此节点选项：'+','.join(sorted(unknown)))
     return p
 
-def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True):
+def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True,ipv6=True):
     mode=mode or ('tun' if device=='mobile' else 'proxy')
     if mode not in {'tun','proxy'}: raise ValueError('无效的接管模式')
     tun=device=='mobile' or mode=='tun'
@@ -187,15 +187,17 @@ def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True):
     if fmt=='clash':
         providers={name.replace('/','_'):{'type':'http','behavior':'classical','proxy':'DIRECT','format':'yaml','url':f'{base}/rules/{name.replace("/","_")}.yaml','path':f'./rules/{name.replace("/","_")}.yaml','interval':86400} for name,_ in RULES}
         providers['HeidaiAd']={'type':'http','behavior':'domain','format':'mrs','proxy':'DIRECT','url':f'{base}/rules/HeidaiAd.mrs','path':'./rules/HeidaiAd.mrs','interval':28800}
-        cfg={'mixed-port':7890,'allow-lan':False,'mode':'rule','log-level':'warning','ipv6':True,
+        cfg={'mixed-port':7890,'allow-lan':False,'mode':'rule','log-level':'warning','ipv6':ipv6,'bind-address':'127.0.0.1',
              'dns':{'enable':True,'listen':'127.0.0.1:1053','enhanced-mode':'fake-ip','fake-ip-range':'198.18.0.1/16','default-nameserver':['223.5.5.5','119.29.29.29'],'nameserver':['https://dns.alidns.com/dns-query','https://doh.pub/dns-query']},
              'proxies':[to_clash(n) for n in nodes],
              'proxy-groups':[{'name':'PROXY','type':'select','proxies':['AUTO']+tags+['DIRECT']},{'name':'AUTO','type':'url-test','proxies':tags,'url':'https://www.gstatic.com/generate_204','interval':300,'tolerance':50},{'name':'故障转移','type':'fallback','proxies':tags,'url':'https://www.gstatic.com/generate_204','interval':60,'lazy':False},{'name':'全球拦截','type':'select','proxies':['REJECT','DIRECT','PROXY']},{'name':'去广告','type':'select','proxies':['REJECT','DIRECT','PROXY']}]+[{'name':g,'type':'select','proxies':['PROXY','故障转移','DIRECT']+tags} for g in groups],
              'rule-providers':providers,'rules':['IP-CIDR,127.0.0.0/8,DIRECT,no-resolve','IP-CIDR,10.0.0.0/8,DIRECT,no-resolve','IP-CIDR,172.16.0.0/12,DIRECT,no-resolve','IP-CIDR,192.168.0.0/16,DIRECT,no-resolve']+[f'RULE-SET,{name.replace("/","_")},{"去广告" if group=="REJECT" else group}' for name,group in RULES]+['MATCH,PROXY']}
         # The adblock switch controls both connection and DNS filtering.
         cfg['rules'].insert(5,'RULE-SET,HeidaiAd,去广告')
-        cfg['dns']['nameserver-policy']={'rule-set:Ruleset_Tencent':'https://dns.alidns.com/dns-query','rule-set:ChinaDomain':'https://dns.alidns.com/dns-query'}
-        cfg['dns']['fake-ip-filter']=['rule-set:Ruleset_Tencent','rule-set:ChinaDomain']
+        # CCB Life waits on its launch endpoint; exempt it before ad filtering.
+        cfg['rules'].insert(5,'DOMAIN-SUFFIX,adv.ccb.com,DIRECT')
+        cfg['dns']['nameserver-policy']={'rule-set:Ruleset_Tencent':'https://dns.alidns.com/dns-query','rule-set:ChinaDomain':'https://dns.alidns.com/dns-query','+.adv.ccb.com':'https://dns.alidns.com/dns-query'}
+        cfg['dns']['fake-ip-filter']=['rule-set:Ruleset_Tencent','rule-set:ChinaDomain','+.adv.ccb.com']
         if adblock:
             cfg['dns']['nameserver-policy']['rule-set:HeidaiAd']='https://1.1.1.1/dns-query#去广告'
             cfg['dns']['fake-ip-filter'].append('rule-set:HeidaiAd')
@@ -204,15 +206,19 @@ def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True):
             cfg['rules']=[r for r in cfg['rules'] if not r.endswith(',去广告')]
             cfg['rule-providers']={k:v for k,v in cfg['rule-providers'].items() if k not in {'HeidaiAd','BanAD','BanProgramAD'}}
         if tun: cfg['tun']={'enable':True,'stack':'mixed','auto-route':True,'auto-detect-interface':True,'dns-hijack':['any:53']}
+        cfg['dns']['ipv6']=ipv6
+        if ipv6:
+            cfg['listeners']=[{'name':'mixed-ipv6','type':'mixed','listen':'::1','port':7890,'udp':True}]
+            if tun: cfg['tun']['inet6-address']=['fdfe:dcba:9876::1/126']
         return yaml.safe_dump(cfg,allow_unicode=True,sort_keys=False),'text/yaml; charset=utf-8'
-    rules=[{'action':'sniff'},{'protocol':'dns','action':'hijack-dns'},{'ip_is_private':True,'action':'route','outbound':'DIRECT'},{'rule_set':'Ruleset_Tencent','action':'route','outbound':'DIRECT'},{'rule_set':'HeidaiAd','action':'route','outbound':'去广告'}]
+    rules=[{'action':'sniff'},{'protocol':'dns','action':'hijack-dns'},{'ip_is_private':True,'action':'route','outbound':'DIRECT'},{'rule_set':'Ruleset_Tencent','action':'route','outbound':'DIRECT'},{'domain_suffix':['adv.ccb.com'],'action':'route','outbound':'DIRECT'},{'rule_set':'HeidaiAd','action':'route','outbound':'去广告'}]
     for name,group in RULES:
         r={'rule_set':name.replace('/','_'),'action':'route','outbound':'去广告' if group=='REJECT' else group}
         rules.append(r)
     cfg={'log':{'level':'warn','timestamp':True},
          'dns':{'servers':[{'type':'https','tag':'dns-local','server':'223.5.5.5','path':'/dns-query'},{'type':'https','tag':'dns-remote','server':'1.1.1.1','path':'/dns-query','detour':'PROXY'}],
-                'rules':[{'rule_set':'Tencent-DNS','action':'route','server':'dns-local'},{'rule_set':'HeidaiAd','action':'route','server':'dns-adblock'},{'rule_set':['ChinaDomain-DNS','GoogleCN','UnBan'],'action':'route','server':'dns-local'}],'final':'dns-remote'},
-         'inbounds':([{'type':'tun','tag':'tun-in','address':['172.31.255.1/30','fdfe:dcba:9876::1/126'],'auto_route':True,'strict_route':True}] if tun else [])+([{'type':'mixed','tag':'mixed-in','listen':'127.0.0.1','listen_port':7890}] if device=='desktop' else []),
+                'rules':[{'rule_set':'Tencent-DNS','action':'route','server':'dns-local'},{'domain_suffix':['adv.ccb.com'],'action':'route','server':'dns-local'},{'rule_set':'HeidaiAd','action':'route','server':'dns-adblock'},{'rule_set':['ChinaDomain-DNS','GoogleCN','UnBan'],'action':'route','server':'dns-local'}],'final':'dns-remote'},
+         'inbounds':([{'type':'tun','tag':'tun-in','address':['172.31.255.1/30']+(['fdfe:dcba:9876::1/126'] if ipv6 else []),'auto_route':True,'strict_route':True}] if tun else [])+([{'type':'mixed','tag':'mixed-in','listen':'127.0.0.1','listen_port':7890}] if device=='desktop' else []),
          'http_clients':[{'tag':'rules-download'}],
          'outbounds':[{'type':'selector','tag':'PROXY','outbounds':['AUTO']+tags+['DIRECT'],'default':'AUTO'},{'type':'urltest','tag':'AUTO','outbounds':tags,'url':'https://www.gstatic.com/generate_204','interval':'5m','tolerance':50},{'type':'urltest','tag':'故障转移','outbounds':tags,'url':'https://www.gstatic.com/generate_204','interval':'1m','tolerance':50},{'type':'selector','tag':'全球拦截','outbounds':['REJECT','DIRECT','PROXY'],'default':'REJECT'},{'type':'selector','tag':'去广告','outbounds':['DIRECT','PROXY','REJECT'],'default':'REJECT'}]+[{'type':'selector','tag':g,'outbounds':['PROXY','故障转移','DIRECT']+tags,'default':'DIRECT' if g in {'Apple','Microsoft'} else 'PROXY'} for g in groups]+nodes+[{'type':'direct','tag':'DIRECT'},{'type':'block','tag':'REJECT'}],
          'route':{'default_http_client':'rules-download','default_domain_resolver':'dns-local','auto_detect_interface':True,'final':'PROXY','rules':rules,
@@ -225,19 +231,35 @@ def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True):
         cfg['dns']['rules']=[r for r in cfg['dns']['rules'] if r.get('server')!='dns-adblock']
         cfg['route']['rules']=[r for r in cfg['route']['rules'] if r.get('outbound')!='去广告']
         cfg['route']['rule_set']=[r for r in cfg['route']['rule_set'] if r['tag'] not in {'HeidaiAd','BanAD','BanProgramAD'}]
-    return json.dumps(cfg,ensure_ascii=False,indent=2),'application/json; charset=utf-8'
+    if device=='desktop' and ipv6:
+        cfg['inbounds'].append({'type':'mixed','tag':'mixed-in-ipv6','listen':'::1','listen_port':7890})
+    if not ipv6: cfg['dns']['strategy']='ipv4_only'
+    cfg['route']['rules']=list({json.dumps(r,sort_keys=True):r for r in cfg['route']['rules']}.values())
+    return json.dumps(cfg,ensure_ascii=False,separators=(',',':')),'application/json; charset=utf-8'
 
 def convert_rules(text):
     fields={'DOMAIN':'domain','DOMAIN-SUFFIX':'domain_suffix','DOMAIN-KEYWORD':'domain_keyword','IP-CIDR':'ip_cidr','IP-CIDR6':'ip_cidr','IP-ASN':'ip_asn'}
-    result={}; clash=[]
+    result={}
     for line in text.splitlines():
         line=line.strip()
         if not line or line.startswith(('#',';','//')): continue
-        a=line.split(','); kind=a[0].upper()
+        a=line.split(',');kind=a[0].upper()
         if kind not in fields or len(a)<2: raise ValueError('ACL4SSR 出现未支持规则：'+kind)
-        value=a[1].strip(); key=fields[kind]
+        value=a[1].strip();key=fields[kind]
+        if key in {'domain','domain_suffix'}: value=value.lower().rstrip('.')
         result.setdefault(key,[]).append(int(value) if key=='ip_asn' else value)
-        clash.append(','.join(a[:2]))
     if not result: raise ValueError('空规则集')
-    # Rule entries are ORed; domain and IP conditions in a single entry would be ANDed.
-    return {'version':3,'rules':[{key:values} for key,values in result.items()]}, {'payload':clash}
+    result={key:list(dict.fromkeys(values)) for key,values in result.items()}
+    suffixes=set(result.get('domain_suffix',[]))
+    def covered(domain,include_self):
+        labels=domain.split('.')
+        return any('.'.join(labels[i:]) in suffixes for i in range(0 if include_self else 1,len(labels)))
+    if 'domain_suffix' in result:
+        result['domain_suffix']=[d for d in result['domain_suffix'] if not covered(d,False)]
+    if 'domain' in result:
+        result['domain']=[d for d in result['domain'] if not covered(d,True)]
+    result={key:values for key,values in result.items() if values}
+    reverse={v:k for k,v in fields.items() if k!='IP-CIDR6'}
+    clash=[reverse[key]+','+str(value) for key,values in result.items() for value in values]
+    # Only deduplicate within a rule set: overlaps across policies preserve precedence.
+    return {'version':3,'rules':[{key:values} for key,values in result.items()]},{'payload':clash}

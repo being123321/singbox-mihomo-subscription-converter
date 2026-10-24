@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>订阅工坊 · ACL4SSR</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>singbox/mihomo 订阅转换</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
 <body><main><header><a class="brand" href="/">ZH <span>/ 订阅工坊</span></a><span class="badge">ACL4SSR 分流规则</span></header>
 <section class="intro"><p class="eyebrow">YOUR NODES. YOUR RULES.</p><h1>一份订阅，<br>随设备而变。</h1><p>把你的节点转换成适合手机或电脑的配置。<br>支持 sing-box 与 Clash Meta / Mihomo。</p></section>
 <section class="panel"><div class="heading"><span class="step">01</span><h2>导入你的订阅</h2></div>
@@ -13,6 +13,7 @@
 <p class="hint">统一订阅按 UA 输出 sing-box、Clash/Mihomo 或 v2rayN / v2rayNG / 小火箭节点订阅。未知 UA 默认返回通用节点格式；可添加 ?target=singbox、clash、xray 手动指定。节点订阅不携带 TUN、分流和去广告策略，需在对应客户端中设置。</p><div class="row"><label for="mode">流量接管模式</label><select id="mode" disabled><option value="tun">TUN · 接管系统流量</option><option value="proxy">系统代理 · 127.0.0.1:7890</option></select></div>
 <p class="hint">sing-box 已适配 1.15 新 TUN 栈，不写入弃用的 stack 选项。1.15 当前为预发布版，亦兼容 1.14.3 稳定版。</p>
 <label class="toggle"><input id="adblock" type="checkbox" checked><span>去广告<small>启用“去广告”策略组，同时控制广告连接与 DNS 查询。组内可选直连、代理、拦截，默认拦截；关闭本开关则停用两层去广告。</small></span></label>
+<label class="toggle"><input id="ipv6" type="checkbox" checked><span>IPv6 入站<small>默认开启。启用双栈 TUN 和本机 IPv6 代理入口；网络或客户端不支持 IPv6 时可关闭。节点列表订阅不携带入站设置。</small></span></label>
 <label class="toggle"><input id="insecure" type="checkbox"><span>跳过节点证书验证<small>默认关闭。仅在你信任自签名证书节点时开启。</small></span></label>
 <p class="hint">手机：Android / iOS，使用兼容客户端的 VPN 模式。电脑：Windows / macOS / Linux，TUN 需要管理员/root 权限或客户端服务模式；系统代理模式使用 127.0.0.1:7890。v2rayN / v2rayNG / Shadowrocket 请选择统一订阅；原版 Clash 无法使用现代节点配置。</p>
 <div class="actions"><button type="submit" id="create">生成订阅链接 <span>↗</span></button><button type="button" id="preview" class="secondary">预览配置</button></div></form>

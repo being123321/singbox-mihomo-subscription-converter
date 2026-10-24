@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 let current=null, lastContent=null;
-const body=()=>({input:$('input').value,source:$('source').value,format:document.querySelector('[name=format]:checked').value,device:document.querySelector('[name=device]:checked').value,mode:$('mode').value,adblock:$('adblock').checked,insecure:$('insecure').checked});
+const body=()=>({input:$('input').value,source:$('source').value,format:document.querySelector('[name=format]:checked').value,device:document.querySelector('[name=device]:checked').value,mode:$('mode').value,adblock:$('adblock').checked,ipv6:$('ipv6').checked,insecure:$('insecure').checked});
 document.querySelectorAll('[name=device]').forEach(el=>el.addEventListener('change',()=>{$('mode').disabled=document.querySelector('[name=device]:checked').value==='mobile';if($('mode').disabled)$('mode').value='tun';}));
 const status=(s,error=false)=>{$('status').textContent=s;$('status').className=error?'error':'';};
 async function api(path,payload){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const j=await r.json();if(!r.ok)throw Error(j.error||'请求失败');return j;}

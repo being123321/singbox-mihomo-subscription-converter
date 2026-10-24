@@ -69,10 +69,10 @@ def update_rules():
             jobs={pool.submit(fetch,('https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Tencent/Tencent.list' if name=='Ruleset/Tencent' else 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/'+name+'.list')):name for name,_ in RULES}
             for future in concurrent.futures.as_completed(jobs):
                 name=jobs[future]; sb,clash=convert_rules(future.result())
-                staged.extend([(name,'json',json.dumps(sb,ensure_ascii=False)),(name,'yaml',yaml.safe_dump(clash,allow_unicode=True,sort_keys=False))])
+                staged.extend([(name,'json',json.dumps(sb,ensure_ascii=False,separators=(',',':'))),(name,'yaml',yaml.safe_dump(clash,allow_unicode=True,sort_keys=False))])
                 if name in {'ChinaDomain','Ruleset/Tencent'}:
                     dns={'version':3,'rules':[r for r in sb['rules'] if all(k in {'domain','domain_suffix','domain_keyword','domain_regex'} for k in r)]}
-                    staged.append((('Tencent-DNS' if name=='Ruleset/Tencent' else 'ChinaDomain-DNS'),'json',json.dumps(dns,ensure_ascii=False)))
+                    staged.append((('Tencent-DNS' if name=='Ruleset/Tencent' else 'ChinaDomain-DNS'),'json',json.dumps(dns,ensure_ascii=False,separators=(',',':'))))
         with RULE_LOCK:
             (DATA/'rules').mkdir(exist_ok=True)
             for name,ext,body in staged:
@@ -121,6 +121,7 @@ def render(body,target=None):
     requested=body.get('format','singbox'); fmt=target or ('xray' if requested=='auto' else requested); device=body.get('device','mobile')
     if requested not in {'singbox','clash','auto','xray'} or fmt not in {'singbox','clash','xray'} or device not in {'mobile','desktop'}: raise ValueError('无效的输出格式或设备类型')
     if not isinstance(body.get('insecure',False),bool): raise ValueError('证书开关必须为布尔值')
+    if not isinstance(body.get('ipv6',True),bool): raise ValueError('IPv6 开关必须为布尔值')
     if not isinstance(body.get('adblock',True),bool): raise ValueError('去广告开关必须为布尔值')
     if not (DATA/'rules-updated').exists() or not (DATA/'adblock-updated').exists(): raise ValueError('规则尚未初始化，请稍后重试')
     nodes=nodes_for(body,universal=requested in {'auto','xray'} or target is not None)
@@ -129,7 +130,7 @@ def render(body,target=None):
         text,ctype,count=uri_subscription(nodes,body.get('insecure',False))
         return text,ctype,count,meta
     nodes,meta['omitted_nodes']=prepare(nodes,fmt)
-    text,ctype=generate(nodes,fmt,device,body.get('insecure',False),BASE,{},body.get('mode'),body.get('adblock',True))
+    text,ctype=generate(nodes,fmt,device,body.get('insecure',False),BASE,{},body.get('mode'),body.get('adblock',True),body.get('ipv6',True))
     binary=os.environ.get('SINGBOX_BIN' if fmt=='singbox' else 'MIHOMO_BIN')
     if binary:
         with tempfile.TemporaryDirectory(prefix='validate-',dir=DATA) as directory:
@@ -192,7 +193,7 @@ class Handler(BaseHTTPRequestHandler):
                 if body.get('format')=='auto':
                     if any(x in ua.lower() for x in ['windows','macintosh','macos','sfm','v2rayn/']):body['device']='desktop'
                     elif any(x in ua.lower() for x in ['android','iphone','ios','sfa/','sfi/']):body['device']='mobile'
-                key=hashlib.sha256(('v14:'+json.dumps(body,sort_keys=True)+':'+str(target)).encode()).hexdigest(); cache=DATA/f'cache-{key}.json'
+                key=hashlib.sha256(('v16:'+json.dumps(body,sort_keys=True)+':'+str(target)).encode()).hexdigest(); cache=DATA/f'cache-{key}.json'
                 if cache.exists() and time.time()-cache.stat().st_mtime<300: text,ctype,count,meta=json.loads(cache.read_text(encoding='utf-8'))
                 else:
                     text,ctype,count,meta=render(body,target)

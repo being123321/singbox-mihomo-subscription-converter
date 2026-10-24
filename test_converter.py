@@ -36,7 +36,7 @@ class ConversionTests(unittest.TestCase):
         nodes=parse_source('trojan://secret@example.com:443#test')
         text,_=generate(nodes,'singbox','desktop',False,'https://sub.example.com',{},'tun')
         cfg=json.loads(text)
-        self.assertEqual([x['type'] for x in cfg['inbounds']],['tun','mixed'])
+        self.assertEqual([x['type'] for x in cfg['inbounds']],['tun','mixed','mixed'])
         self.assertNotIn('stack',cfg['inbounds'][0])
         self.assertEqual(cfg['route']['default_http_client'],'rules-download')
         self.assertNotIn('detour',cfg['http_clients'][0])

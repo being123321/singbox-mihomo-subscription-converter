@@ -12,6 +12,44 @@ from converter import RULES, generate, parse_source
 
 
 class AppTests(unittest.TestCase):
+    def test_ipv6_toggle_and_compact_json(self):
+        import yaml
+        nodes = parse_source('trojan://test@example.com:443#test')
+        for enabled in (True, False):
+            for device, mode in (('mobile','tun'), ('desktop','tun'), ('desktop','proxy')):
+                text = generate(nodes,'singbox',device,False,'https://sub.example.com',{},mode,True,enabled)[0]
+                cfg = json.loads(text)
+                self.assertNotIn('\n',text)
+                for inbound in cfg['inbounds']:
+                    if inbound['type']=='tun':
+                        self.assertEqual(any(':' in a for a in inbound['address']),enabled)
+                self.assertEqual(any(i.get('listen')=='::1' for i in cfg['inbounds']),enabled and device=='desktop')
+                clash = yaml.safe_load(generate(nodes,'clash',device,False,'https://sub.example.com',{},mode,True,enabled)[0])
+                self.assertEqual(clash['ipv6'],enabled)
+                self.assertEqual(clash['dns']['ipv6'],enabled)
+                self.assertEqual(bool(clash.get('listeners')),enabled)
+                if mode=='tun': self.assertEqual(bool(clash['tun'].get('inet6-address')),enabled)
+
+    def test_rules_deduplicate_without_changing_policy_sets(self):
+        from converter import convert_rules
+        rules, clash = convert_rules('DOMAIN-SUFFIX,Example.COM\nDOMAIN-SUFFIX,example.com\nDOMAIN-SUFFIX,a.example.com\nDOMAIN,a.example.com\nDOMAIN,other.test\nDOMAIN,other.test\nIP-CIDR,1.2.3.0/24\nIP-CIDR,1.2.3.0/24')
+        self.assertEqual(rules['rules'],[{'domain_suffix':['example.com']},{'domain':['other.test']},{'ip_cidr':['1.2.3.0/24']}])
+        self.assertEqual(len(clash['payload']),3)
+
+    def test_ccb_launch_exception_precedes_ads(self):
+        import yaml
+        nodes = parse_source('trojan://test@example.com:443#test')
+        sb = json.loads(generate(nodes, 'singbox', 'mobile', False, 'https://sub.example.com', {}, 'tun', True)[0])
+        for rules, target in ((sb['route']['rules'], 'outbound'), (sb['dns']['rules'], 'server')):
+            allow = next(i for i, r in enumerate(rules) if r.get('domain_suffix') == ['adv.ccb.com'])
+            block = next(i for i, r in enumerate(rules) if r.get('rule_set') == 'HeidaiAd')
+            self.assertLess(allow, block)
+            self.assertEqual(rules[allow][target], 'DIRECT' if target == 'outbound' else 'dns-local')
+        cfg = yaml.safe_load(generate(nodes, 'clash', 'mobile', False, 'https://sub.example.com', {}, 'tun', True)[0])
+        self.assertLess(cfg['rules'].index('DOMAIN-SUFFIX,adv.ccb.com,DIRECT'), cfg['rules'].index('RULE-SET,HeidaiAd,去广告'))
+        self.assertEqual(cfg['dns']['nameserver-policy']['+.adv.ccb.com'], 'https://dns.alidns.com/dns-query')
+        self.assertIn('+.adv.ccb.com', cfg['dns']['fake-ip-filter'])
+
     def test_more_than_five_subscriptions(self):
         import app
         urls = ['https://sub.example.com:' + str(9000 + i) for i in range(12)]
