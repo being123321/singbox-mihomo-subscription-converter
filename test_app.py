@@ -12,14 +12,14 @@ from converter import RULES, generate, parse_source
 
 
 class AppTests(unittest.TestCase):
-    def test_ipv6_toggle_and_compact_json(self):
+    def test_ipv6_toggle_and_formatted_json(self):
         import yaml
         nodes = parse_source('trojan://test@example.com:443#test')
         for enabled in (True, False):
             for device, mode in (('mobile','tun'), ('desktop','tun'), ('desktop','proxy')):
                 text = generate(nodes,'singbox',device,False,'https://sub.example.com',{},mode,True,enabled)[0]
                 cfg = json.loads(text)
-                self.assertNotIn('\n',text)
+                self.assertEqual(text,json.dumps(cfg,ensure_ascii=False,indent=2)+'\n')
                 for inbound in cfg['inbounds']:
                     if inbound['type']=='tun':
                         self.assertEqual(any(':' in a for a in inbound['address']),enabled)

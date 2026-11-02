@@ -235,7 +235,7 @@ def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True,ipv
         cfg['inbounds'].append({'type':'mixed','tag':'mixed-in-ipv6','listen':'::1','listen_port':7890})
     if not ipv6: cfg['dns']['strategy']='ipv4_only'
     cfg['route']['rules']=list({json.dumps(r,sort_keys=True):r for r in cfg['route']['rules']}.values())
-    return json.dumps(cfg,ensure_ascii=False,separators=(',',':')),'application/json; charset=utf-8'
+    return json.dumps(cfg,ensure_ascii=False,indent=2)+'\n','application/json; charset=utf-8'
 
 def convert_rules(text):
     fields={'DOMAIN':'domain','DOMAIN-SUFFIX':'domain_suffix','DOMAIN-KEYWORD':'domain_keyword','IP-CIDR':'ip_cidr','IP-CIDR6':'ip_cidr','IP-ASN':'ip_asn'}
