@@ -9,3 +9,6 @@ cache-*.json
 *.pem
 *.key
 *.log
+
+# Private deployment domain list
+direct-domains.json

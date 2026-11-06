@@ -121,6 +121,8 @@ def render(body,target=None):
     requested=body.get('format','singbox'); fmt=target or ('xray' if requested=='auto' else requested); device=body.get('device','mobile')
     if requested not in {'singbox','clash','auto','xray'} or fmt not in {'singbox','clash','xray'} or device not in {'mobile','desktop'}: raise ValueError('无效的输出格式或设备类型')
     if not isinstance(body.get('insecure',False),bool): raise ValueError('证书开关必须为布尔值')
+    body.pop('direct_dns',None)  # Retired plaintext DNS override is ignored for old profiles.
+    if not isinstance(body.get('clash_api',True),bool): raise ValueError('Clash API 开关必须为布尔值')
     if not isinstance(body.get('ipv6',True),bool): raise ValueError('IPv6 开关必须为布尔值')
     if not isinstance(body.get('adblock',True),bool): raise ValueError('去广告开关必须为布尔值')
     if not (DATA/'rules-updated').exists() or not (DATA/'adblock-updated').exists(): raise ValueError('规则尚未初始化，请稍后重试')
@@ -130,7 +132,7 @@ def render(body,target=None):
         text,ctype,count=uri_subscription(nodes,body.get('insecure',False))
         return text,ctype,count,meta
     nodes,meta['omitted_nodes']=prepare(nodes,fmt)
-    text,ctype=generate(nodes,fmt,device,body.get('insecure',False),BASE,{},body.get('mode'),body.get('adblock',True),body.get('ipv6',True))
+    text,ctype=generate(nodes,fmt,device,body.get('insecure',False),BASE,{},body.get('mode'),body.get('adblock',True),body.get('ipv6',True),body.get('clash_api',True),body.get('_clash_api_secret'))
     binary=os.environ.get('SINGBOX_BIN' if fmt=='singbox' else 'MIHOMO_BIN')
     if binary:
         with tempfile.TemporaryDirectory(prefix='validate-',dir=DATA) as directory:
@@ -188,12 +190,12 @@ class Handler(BaseHTTPRequestHandler):
             if m:
                 with db() as c: row=c.execute('select body from subscriptions where id=?',(m[1],)).fetchone()
                 if not row: return self.send(404,{'error':'订阅不存在或已撤销'})
-                body=json.loads(row[0]); query=parse_qs(urlsplit(self.path).query);ua=self.headers.get('User-Agent','')
+                body=json.loads(row[0]); body.setdefault('_clash_api_secret',hashlib.sha256(('clash-api:'+m[1]).encode()).hexdigest()); query=parse_qs(urlsplit(self.path).query);ua=self.headers.get('User-Agent','')
                 target=target_override(query['target'][0]) if query.get('target') else detect_target(ua) if body.get('format')=='auto' else None
                 if body.get('format')=='auto':
                     if any(x in ua.lower() for x in ['windows','macintosh','macos','sfm','v2rayn/']):body['device']='desktop'
                     elif any(x in ua.lower() for x in ['android','iphone','ios','sfa/','sfi/']):body['device']='mobile'
-                key=hashlib.sha256(('v20-formatted-public:'+json.dumps(body,sort_keys=True)+':'+str(target)).encode()).hexdigest(); cache=DATA/f'cache-{key}.json'
+                key=hashlib.sha256(('v27-bili-fast-dns-public:'+json.dumps(body,sort_keys=True)+':'+str(target)).encode()).hexdigest(); cache=DATA/f'cache-{key}.json'
                 if cache.exists() and time.time()-cache.stat().st_mtime<300: text,ctype,count,meta=json.loads(cache.read_text(encoding='utf-8'))
                 else:
                     text,ctype,count,meta=render(body,target)
@@ -216,6 +218,7 @@ class Handler(BaseHTTPRequestHandler):
                 with db() as c: c.execute('delete from subscriptions where id=?',(token,))
                 return self.send(200,{'ok':True})
             if path not in {'/api/preview','/api/create'}: return self.send(404,{'error':'未知接口'})
+            body['_clash_api_secret']=secrets.token_urlsafe(24)
             text,ctype,count,meta=render(body)
             if path=='/api/preview': return self.send(200,{'content':text,'content_type':ctype,'nodes':count,**meta})
             token=secrets.token_urlsafe(24)

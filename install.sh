@@ -82,7 +82,7 @@ else
   git clone --depth 1 --branch "$REF" "https://github.com/$REPOSITORY.git" "$STAGING/source"
   SOURCE=$STAGING/source
 fi
-for file in app.py converter.py subscriptions.py app.js index.html style.css requirements.txt; do
+for file in app.py converter.py subscriptions.py dns_policy.py direct_domains.py bili_dns.py app.js index.html style.css requirements.txt; do
   [[ -f $SOURCE/$file ]] || { echo "缺少源码文件：$file"; exit 1; }
 done
 id subscription-forge >/dev/null 2>&1 || useradd --system --home "$DATA" --shell /usr/sbin/nologin subscription-forge
@@ -92,7 +92,7 @@ if [[ -f $ROOT/app.py ]]; then
   install -d -m 700 "$ROOT/previous"
   cp "$ROOT/"*.py "$ROOT/"*.js "$ROOT/"*.html "$ROOT/"*.css "$ROOT/requirements.txt" "$ROOT/previous/"
 fi
-for file in app.py converter.py subscriptions.py app.js index.html style.css requirements.txt; do install -m 644 "$SOURCE/$file" "$ROOT/$file"; done
+for file in app.py converter.py subscriptions.py dns_policy.py direct_domains.py bili_dns.py app.js index.html style.css requirements.txt; do install -m 644 "$SOURCE/$file" "$ROOT/$file"; done
 touch "$ROOT/.subscription-forge"
 python3 -m venv "$ROOT/venv"
 "$ROOT/venv/bin/pip" install --disable-pip-version-check -r "$ROOT/requirements.txt"

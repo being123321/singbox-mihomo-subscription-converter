@@ -47,7 +47,7 @@ class AppTests(unittest.TestCase):
             self.assertEqual(rules[allow][target], 'DIRECT' if target == 'outbound' else 'dns-local')
         cfg = yaml.safe_load(generate(nodes, 'clash', 'mobile', False, 'https://sub.example.com', {}, 'tun', True)[0])
         self.assertLess(cfg['rules'].index('DOMAIN-SUFFIX,adv.ccb.com,DIRECT'), cfg['rules'].index('RULE-SET,HeidaiAd,去广告'))
-        self.assertEqual(cfg['dns']['nameserver-policy']['+.adv.ccb.com'], 'https://dns.alidns.com/dns-query')
+        self.assertEqual(cfg['dns']['nameserver-policy']['+.adv.ccb.com'], ['https://223.5.5.5/dns-query','https://doh.pub/dns-query'])
         self.assertIn('+.adv.ccb.com', cfg['dns']['fake-ip-filter'])
 
     def test_more_than_five_subscriptions(self):
@@ -102,7 +102,7 @@ class AppTests(unittest.TestCase):
             routing = sb['route']['rules']
             tencent = next(i for i, r in enumerate(routing) if r.get('rule_set') == 'Ruleset_Tencent')
             self.assertEqual(routing[tencent]['outbound'], 'DIRECT')
-            self.assertEqual(sb['dns']['rules'][0]['rule_set'], 'Tencent-DNS')
+            self.assertTrue(any(r.get('rule_set')=='Tencent-DNS' and r.get('server')=='dns-local' for r in sb['dns']['rules']))
             if enabled:
                 self.assertLess(tencent, next(i for i, r in enumerate(routing) if r.get('rule_set') == 'HeidaiAd'))
             else:

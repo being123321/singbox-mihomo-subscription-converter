@@ -2,6 +2,11 @@
 import base64, copy, json, re
 from urllib.parse import urlsplit, parse_qs, unquote
 import yaml
+from direct_domains import configured_domains, singbox as owned_singbox, mihomo as owned_mihomo
+from bili_dns import apply as bili_fast_dns
+from dns_policy import singbox as encrypted_singbox, mihomo as encrypted_mihomo
+
+TOUTIAO_DIRECT=['toutiao.com','toutiaoapi.com','snssdk.com','pstatp.com','toutiaocdn.com','toutiaocdn.net','toutiaoimg.com','toutiaostatic.com','bytegecko.com','api-normal-toutiao-v3.doubao.com']
 
 SUPPORTED={'shadowsocks','vmess','vless','trojan','hysteria2','tuic','socks','http','anytls'}
 RULES=[('Ruleset/Tencent','DIRECT'),('LocalAreaNetwork','DIRECT'),('UnBan','DIRECT'),('BanAD','REJECT'),
@@ -178,7 +183,11 @@ def to_clash(n):
     if unknown: raise ValueError('Clash 无法无损转换此节点选项：'+','.join(sorted(unknown)))
     return p
 
-def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True,ipv6=True):
+def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True,ipv6=True,clash_api=True,api_secret=None):
+    if clash_api and not api_secret:
+        import secrets
+        api_secret=secrets.token_urlsafe(24)
+    owned_domains=configured_domains()
     mode=mode or ('tun' if device=='mobile' else 'proxy')
     if mode not in {'tun','proxy'}: raise ValueError('无效的接管模式')
     tun=device=='mobile' or mode=='tun'
@@ -196,8 +205,11 @@ def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True,ipv
         cfg['rules'].insert(5,'RULE-SET,HeidaiAd,去广告')
         # CCB Life waits on its launch endpoint; exempt it before ad filtering.
         cfg['rules'].insert(5,'DOMAIN-SUFFIX,adv.ccb.com,DIRECT')
+        cfg['rules'][0:0]=['DOMAIN-SUFFIX,'+domain+',DIRECT' for domain in TOUTIAO_DIRECT]
         cfg['dns']['nameserver-policy']={'rule-set:Ruleset_Tencent':'https://dns.alidns.com/dns-query','rule-set:ChinaDomain':'https://dns.alidns.com/dns-query','+.adv.ccb.com':'https://dns.alidns.com/dns-query'}
         cfg['dns']['fake-ip-filter']=['rule-set:Ruleset_Tencent','rule-set:ChinaDomain','+.adv.ccb.com']
+        cfg['dns']['nameserver-policy'].update({'+.'+domain:'https://dns.alidns.com/dns-query' for domain in TOUTIAO_DIRECT})
+        cfg['dns']['fake-ip-filter'].extend('+.'+domain for domain in TOUTIAO_DIRECT)
         if adblock:
             cfg['dns']['nameserver-policy']['rule-set:HeidaiAd']='https://1.1.1.1/dns-query#去广告'
             cfg['dns']['fake-ip-filter'].append('rule-set:HeidaiAd')
@@ -210,7 +222,8 @@ def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True,ipv
         if ipv6:
             cfg['listeners']=[{'name':'mixed-ipv6','type':'mixed','listen':'::1','port':7890,'udp':True}]
             if tun: cfg['tun']['inet6-address']=['fdfe:dcba:9876::1/126']
-        return yaml.safe_dump(cfg,allow_unicode=True,sort_keys=False),'text/yaml; charset=utf-8'
+        if clash_api: cfg.update({'external-controller':'127.0.0.1:9090','secret':api_secret})
+        return yaml.safe_dump(encrypted_mihomo(owned_mihomo(cfg,owned_domains)),allow_unicode=True,sort_keys=False),'text/yaml; charset=utf-8'
     rules=[{'action':'sniff'},{'protocol':'dns','action':'hijack-dns'},{'ip_is_private':True,'action':'route','outbound':'DIRECT'},{'rule_set':'Ruleset_Tencent','action':'route','outbound':'DIRECT'},{'domain_suffix':['adv.ccb.com'],'action':'route','outbound':'DIRECT'},{'rule_set':'HeidaiAd','action':'route','outbound':'去广告'}]
     for name,group in RULES:
         r={'rule_set':name.replace('/','_'),'action':'route','outbound':'去广告' if group=='REJECT' else group}
@@ -224,6 +237,9 @@ def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True,ipv
          'route':{'default_http_client':'rules-download','default_domain_resolver':'dns-local','auto_detect_interface':True,'final':'PROXY','rules':rules,
                   'rule_set':[{'type':'remote','tag':name.replace('/','_'),'format':'source','url':f'{base}/rules/{name.replace("/","_")}.json','http_client':'rules-download','update_interval':'1d'} for name,_ in RULES]+[{'type':'remote','tag':'Tencent-DNS','format':'source','url':f'{base}/rules/Tencent-DNS.json','http_client':'rules-download','update_interval':'1d'},{'type':'remote','tag':'ChinaDomain-DNS','format':'source','url':f'{base}/rules/ChinaDomain-DNS.json','http_client':'rules-download','update_interval':'1d'}]},
          'experimental':{'cache_file':{'enabled':True}}}
+    if clash_api: cfg['experimental']['clash_api']={'external_controller':'127.0.0.1:9090','secret':api_secret,'default_mode':'rule'}
+    cfg['route']['rules'].insert(2,{'domain_suffix':TOUTIAO_DIRECT,'action':'route','outbound':'DIRECT'})
+    cfg['dns']['rules'].insert(1,{'domain_suffix':TOUTIAO_DIRECT,'action':'route','server':'dns-local'})
     cfg['route']['rule_set'].append({'type':'remote','tag':'HeidaiAd','format':'binary','url':f'{base}/rules/HeidaiAd.srs','http_client':'rules-download','update_interval':'8h'})
     if adblock:
         cfg['dns']['servers'].append({'type':'https','tag':'dns-adblock','server':'1.1.1.1','path':'/dns-query','detour':'去广告'})
@@ -235,7 +251,7 @@ def generate(nodes,fmt,device,insecure,base,rule_data,mode=None,adblock=True,ipv
         cfg['inbounds'].append({'type':'mixed','tag':'mixed-in-ipv6','listen':'::1','listen_port':7890})
     if not ipv6: cfg['dns']['strategy']='ipv4_only'
     cfg['route']['rules']=list({json.dumps(r,sort_keys=True):r for r in cfg['route']['rules']}.values())
-    return json.dumps(cfg,ensure_ascii=False,indent=2)+'\n','application/json; charset=utf-8'
+    return json.dumps(encrypted_singbox(bili_fast_dns(owned_singbox(cfg,owned_domains))),ensure_ascii=False,indent=2)+'\n','application/json; charset=utf-8'
 
 def convert_rules(text):
     fields={'DOMAIN':'domain','DOMAIN-SUFFIX':'domain_suffix','DOMAIN-KEYWORD':'domain_keyword','IP-CIDR':'ip_cidr','IP-CIDR6':'ip_cidr','IP-ASN':'ip_asn'}

@@ -13,6 +13,8 @@
 <p class="hint">统一订阅按 UA 输出 sing-box、Clash/Mihomo 或 v2rayN / v2rayNG / 小火箭节点订阅。未知 UA 默认返回通用节点格式；可添加 ?target=singbox、clash、xray 手动指定。节点订阅不携带 TUN、分流和去广告策略，需在对应客户端中设置。</p><div class="row"><label for="mode">流量接管模式</label><select id="mode" disabled><option value="tun">TUN · 接管系统流量</option><option value="proxy">系统代理 · 127.0.0.1:7890</option></select></div>
 <p class="hint">sing-box 已适配 1.15 新 TUN 栈，不写入弃用的 stack 选项。1.15 当前为预发布版，亦兼容 1.14.3 稳定版。</p>
 <label class="toggle"><input id="adblock" type="checkbox" checked><span>去广告<small>启用“去广告”策略组，同时控制广告连接与 DNS 查询。组内可选直连、代理、拦截，默认拦截；关闭本开关则停用两层去广告。</small></span></label>
+<p class="hint">国内 DNS 使用阿里、腾讯的 HTTPS 加密解析。sing-box 主用失败时切换腾讯备用；不写入特定宽带的运营商 DNS。</p>
+<label class="toggle"><input id="clash_api" type="checkbox" checked><span>Clash API 控制接口<small>默认开启，仅监听客户端本机 127.0.0.1:9090。可连接兼容控制面板；密钥见下载配置的 secret 字段。端口冲突时可关闭。通用节点订阅不携带此设置。</small></span></label>
 <label class="toggle"><input id="ipv6" type="checkbox" checked><span>IPv6 入站<small>默认开启。启用双栈 TUN 和本机 IPv6 代理入口；网络或客户端不支持 IPv6 时可关闭。节点列表订阅不携带入站设置。</small></span></label>
 <label class="toggle"><input id="insecure" type="checkbox"><span>跳过节点证书验证<small>默认关闭。仅在你信任自签名证书节点时开启。</small></span></label>
 <p class="hint">手机：Android / iOS，使用兼容客户端的 VPN 模式。电脑：Windows / macOS / Linux，TUN 需要管理员/root 权限或客户端服务模式；系统代理模式使用 127.0.0.1:7890。v2rayN / v2rayNG / Shadowrocket 请选择统一订阅；原版 Clash 无法使用现代节点配置。</p>

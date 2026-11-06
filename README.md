@@ -127,3 +127,21 @@ bash -n install.sh
 2026-10-25：新增默认开启的 IPv6 入站开关：sing-box 双栈 TUN、桌面 [::1]:7890；Mihomo IPv6/DNS、双栈 TUN、本机 [::1]:7890。关闭时不生成 IPv6 入站并采用 IPv4 DNS。节点列表不携带入站配置。规则在各自规则集内去重、移除被父域名覆盖的子域名；不跨策略去重，以保留分流优先级。sing-box JSON 与镜像规则采用紧凑序列化。
 
 2026-11-03：订阅配置 JSON 使用两空格缩进并以换行结尾，YAML 继续格式化；规则镜像保持紧凑。STUN 拦截属于私有部署差异，不在公开版启用。
+
+
+### Clash API
+
+网页 Clash API 开关默认开启。sing-box 和 Mihomo 配置仅监听客户端本机 `127.0.0.1:9090`，每份订阅使用稳定的独立密钥。连接兼容控制面板时，在下载配置的 `secret` 字段查看密钥。没有内置或自动下载网页面板。端口冲突可关闭开关；部分客户端可能覆盖控制接口设置。通用 Xray 节点列表不携带控制接口。不要将监听地址改成公网地址。
+
+
+## 加密 DNS 与加载兼容性
+
+国内 DNS 使用阿里 DoH 与腾讯 DNSPod DoH。sing-box 1.14+ 通过 evaluate/respond 规则，在主用失败或响应非 NOERROR 时使用腾讯备用；Mihomo 使用加密公共 DNS 列表。远程 Cloudflare DoH 走代理，保持证书验证，不使用明文运营商 DNS 覆盖。旧 direct_dns 参数不再生效。
+
+针对 data.bilibili.com，被拦统计域名的 DNS 超时可能使浏览器不断重试。sing-box 输出会让此域名通过现有“去广告”策略组解析：拦截或解析失败时返回 NXDOMAIN，直连/代理模式下正常解析。该规则只在去广告开启时生成，不扩大到整个 B 站，不修改 Mihomo 的广告策略。
+
+## 部署者自己的域名直连
+
+将 direct-domains.example.json 复制为 DATA_DIR 目录下的 direct-domains.json，填写自己拥有的域名。默认安装的数据目录为 /var/lib/subscription-forge；文件应由 subscription-forge 服务用户可读，建议权限 600。此配置覆盖域名本身及子域名，优先直连，并使用国内加密 DNS。文件不存在时不添加任何部署者域名；更改后重启服务并更新订阅。该设置作用于此实例生成的所有配置，公共实例运营者应审慎选择范围。
+
+个人域名清单被 .gitignore 排除，仓库仅提供示例。此功能不登录 Cloudflare、不保存 Cloudflare 凭据，也不会自动同步账户中新增加的域名。

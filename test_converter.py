@@ -88,3 +88,79 @@ class ConversionTests(unittest.TestCase):
 if __name__=='__main__':
     import socket
     unittest.main()
+
+class ClashAPITests(unittest.TestCase):
+    def test_loopback_auth_and_disable(self):
+        nodes=parse_source('trojan://example-secret@example.com:443#test')
+        for fmt in ['singbox','clash']:
+            for enabled in [True,False]:
+                cfg=yaml.safe_load(generate(nodes,fmt,'desktop',False,'https://example.com',{},clash_api=enabled,api_secret='test-secret-abcdefghijklmnop')[0])
+                api=cfg.get('experimental',{}).get('clash_api',{}) if fmt=='singbox' else cfg
+                field='external_controller' if fmt=='singbox' else 'external-controller'
+                self.assertEqual(field in api,enabled)
+                if enabled:
+                    self.assertEqual(api[field],'127.0.0.1:9090')
+                    self.assertEqual(api['secret'],'test-secret-abcdefghijklmnop')
+                else: self.assertNotIn('secret',api)
+
+class ToutiaoTests(unittest.TestCase):
+    def test_toutiao_precedes_adblock(self):
+        nodes=parse_source('trojan://test@example.com:443#test')
+        for fmt in ['singbox','clash']:
+            cfg=yaml.safe_load(generate(nodes,fmt,'desktop',False,'https://example.com',{})[0])
+            if fmt=='singbox':
+                route=cfg['route']['rules'];dns=cfg['dns']['rules']
+                allow=next(i for i,r in enumerate(route) if 'toutiao.com' in r.get('domain_suffix',[]))
+                block=next(i for i,r in enumerate(route) if r.get('outbound')=='去广告')
+                self.assertLess(allow,block);self.assertEqual(route[allow]['outbound'],'DIRECT')
+                self.assertTrue({'snssdk.com','toutiaostatic.com','bytegecko.com','api-normal-toutiao-v3.doubao.com'}.issubset(next(x['domain_suffix'] for x in dns if 'toutiao.com' in x.get('domain_suffix',[]))));self.assertEqual(next(x['server'] for x in dns if 'toutiao.com' in x.get('domain_suffix',[])),'dns-local')
+            else:
+                self.assertLess(cfg['rules'].index('DOMAIN-SUFFIX,toutiao.com,DIRECT'),cfg['rules'].index('RULE-SET,HeidaiAd,去广告'))
+                self.assertEqual(cfg['dns']['nameserver-policy']['+.snssdk.com'],['https://223.5.5.5/dns-query','https://doh.pub/dns-query'])
+                self.assertIn('+.toutiao.com',cfg['dns']['fake-ip-filter'])
+
+class EncryptedDNSTests(unittest.TestCase):
+    def test_encrypted_backup_and_idempotence(self):
+        import dns_policy
+        nodes=parse_source('trojan://test@example.com:443#test')
+        cfg=json.loads(generate(nodes,'singbox','desktop',False,'https://example.com',{})[0])
+        self.assertEqual(cfg,dns_policy.singbox(json.loads(json.dumps(cfg))))
+        self.assertTrue(all(x['type']=='https' for x in cfg['dns']['servers']))
+        self.assertEqual(next(x for x in cfg['dns']['servers'] if x['tag']=='dns-tencent')['tls']['server_name'],'doh.pub')
+        self.assertTrue(any(x.get('action')=='evaluate' and x.get('timeout')=='2s' for x in cfg['dns']['rules']))
+        self.assertTrue(any(x.get('server')=='dns-tencent' and x.get('action')=='route' for x in cfg['dns']['rules']))
+        clash=yaml.safe_load(generate(nodes,'clash','desktop',False,'https://example.com',{})[0])
+        self.assertTrue(all(x.startswith('https://') for x in clash['dns']['default-nameserver']))
+        self.assertEqual(clash['dns']['nameserver-policy']['+.toutiao.com'],[dns_policy.PRIMARY,dns_policy.BACKUP])
+
+class OwnedDomainTests(unittest.TestCase):
+    def test_owned_domains_precede_proxy_and_adblock(self):
+        import direct_domains,dns_policy
+        domains=['example.com','tenant.eu.org']
+        nodes=parse_source('trojan://test@example.net:443#test')
+        with patch('converter.configured_domains',return_value=domains):
+            sb=json.loads(generate(nodes,'singbox','desktop',False,'https://example.net',{})[0])
+            r=next(x for x in sb['route']['rules'] if x.get('domain_suffix')==domains)
+            self.assertEqual(r['outbound'],'DIRECT')
+            self.assertLess(sb['route']['rules'].index(r),next(i for i,x in enumerate(sb['route']['rules']) if x.get('outbound')=='去广告'))
+            self.assertTrue(any(r.get('domain_suffix')==domains and r.get('server')=='dns-local' for r in sb['dns']['rules']))
+            self.assertEqual(sb,dns_policy.singbox(__import__('bili_dns').apply(direct_domains.singbox(json.loads(json.dumps(sb)),domains))))
+            cl=yaml.safe_load(generate(nodes,'clash','desktop',False,'https://example.net',{})[0])
+            self.assertEqual(cl['rules'][:2],['DOMAIN-SUFFIX,example.com,DIRECT','DOMAIN-SUFFIX,tenant.eu.org,DIRECT'])
+            self.assertEqual(cl['dns']['nameserver-policy']['+.example.com'],[dns_policy.PRIMARY,dns_policy.BACKUP])
+            self.assertNotIn('DOMAIN-SUFFIX,eu.org,DIRECT',cl['rules'])
+            self.assertNotIn('DOMAIN-SUFFIX,cloudflare.com,DIRECT',cl['rules'])
+
+class BiliDNSTests(unittest.TestCase):
+    def test_fast_failure_respects_adblock_switch(self):
+        import bili_dns,dns_policy
+        nodes=parse_source('trojan://test@example.net:443#test')
+        for enabled in [True,False]:
+            cfg=json.loads(generate(nodes,'singbox','desktop',False,'https://example.net',{},adblock=enabled)[0])
+            self.assertEqual(any(x.get('tag')==bili_dns.SERVER for x in cfg['dns']['servers']),enabled)
+            if enabled:
+                server=next(x for x in cfg['dns']['servers'] if x['tag']==bili_dns.SERVER)
+                self.assertEqual(server['type'],'https');self.assertEqual(server['detour'],'去广告')
+                self.assertEqual(cfg['dns']['rules'][0]['domain_suffix'],[bili_dns.DOMAIN])
+                self.assertEqual(cfg['dns']['rules'][2]['rcode'],'NXDOMAIN')
+                self.assertEqual(cfg,dns_policy.singbox(bili_dns.apply(json.loads(json.dumps(cfg)))))
